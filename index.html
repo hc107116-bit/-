@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>المصحف الإلكتروني — المساعد الذكي</title>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri&family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f172a; --paper: #fdfbf7; --muted: #64748b; --accent: #b8862f;
+      --ink: #1e293b; --radius: 20px; --shadow: 0 10px 30px rgba(0,0,0,0.3);
+      --sans: 'Cairo', sans-serif; --serif: 'Amiri', serif;
+    }
+    .dark { --bg: #020617; --paper: #1e293b; --ink: #f1f5f9; --muted: #94a3b8; }
+
+    body { margin: 0; background: var(--bg); font-family: var(--sans); color: var(--ink); overflow: hidden; transition: background 0.3s; }
+    .app { display: flex; flex-direction: column; height: 100vh; }
+
+    header.app-bar {
+      padding: 12px 20px; display: flex; align-items: center; justify-content: space-between;
+      background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 1000;
+    }
+    .brand .title { font-size: 18px; font-weight: 800; color: #fff; margin: 0; }
+    .brand .subtitle { font-size: 10px; color: var(--muted); }
+
+    .shell { flex: 1; display: flex; overflow: hidden; position: relative; }
+    .reader-wrap { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 120px; scroll-behavior: smooth; }
+    .mushaf-card {
+      background: var(--paper); border-radius: var(--radius); padding: 30px 20px;
+      box-shadow: var(--shadow); max-width: 800px; margin: 0 auto; min-height: 80vh;
+    }
+    .surah-title { font-family: var(--serif); font-size: 32px; text-align: center; color: var(--accent); margin-bottom: 25px; }
+    .page-text { font-family: var(--serif); font-size: 26px; line-height: 2.3; text-align: justify; text-align-last: center; }
+
+    /* تنسيق العلامات */
+    .verse { cursor: pointer; padding: 2px 4px; border-radius: 8px; transition: 0.2s; display: inline; border-right: 4px solid transparent; }
+    .verse:hover { background: rgba(184, 134, 47, 0.1); }
+    .verse.marked-gold { border-right-color: #b8862f; background: rgba(184, 134, 47, 0.15); }
+    .verse.marked-green { border-right-color: #10b981; background: rgba(16, 185, 129, 0.15); }
+    .verse.marked-red { border-right-color: #ef4444; background: rgba(239, 68, 68, 0.15); }
+    
+    .verse-num {
+      font-family: var(--sans); font-size: 14px; color: var(--accent); font-weight: bold;
+      margin: 0 6px; display: inline-flex; width: 30px; height: 30px;
+      border: 1px solid var(--accent); border-radius: 50%; align-items: center; justify-content: center;
+    }
+
+    .sidebar {
+      position: fixed; right: -100%; top: 0; bottom: 0; width: 85%; max-width: 320px;
+      background: var(--bg); z-index: 2000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      padding: 20px; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+    }
+    .sidebar.open { right: 0; }
+    .toc { flex: 1; overflow-y: auto; margin-top: 20px; padding-right: 5px; }
+    .toc a {
+      display: flex; justify-content: space-between; padding: 14px;
+      background: rgba(255,255,255,0.05); margin-bottom: 8px; border-radius: 12px;
+      text-decoration: none; color: #fff; font-size: 14px; border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .bottom-bar {
+      position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
+      width: 90%; max-width: 450px; background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 100px; display: flex; justify-content: space-between;
+      padding: 8px 15px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); z-index: 1000;
+    }
+    .btn { border: none; background: var(--accent); color: white; padding: 10px 20px; border-radius: 50px; font-weight: 700; cursor: pointer; }
+    .btn-icon { background: rgba(255,255,255,0.1); color: white; width: 48px; height: 48px; border-radius: 50%; border: none; font-size: 20px; cursor: pointer; }
+
+    .tafsir-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: flex-end; justify-content: center; z-index: 3000; }
+    .tafsir-panel { background: var(--paper); width: 100%; max-width: 600px; border-radius: 30px 30px 0 0; padding: 25px; max-height: 80vh; overflow-y: auto; }
+    
+    /* أدوات العلامات في المودال */
+    .mark-tools { display: flex; align-items: center; gap: 12px; margin: 15px 0; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 12px; }
+    .color-dot { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: 0.2s; }
+    .color-dot:hover { transform: scale(1.1); }
+    .choice-btn { background: #111; color: #fff; border: none; padding: 10px; border-radius: 10px; font-weight: bold; cursor: pointer; flex: 1; font-size: 13px; }
+
+    @media (min-width: 768px) {
+      .sidebar { position: static; right: 0; width: 350px; margin: 15px; border-radius: 20px; }
+      .tafsir-modal { align-items: center; padding: 20px; }
+      .tafsir-panel { border-radius: 25px; }
+    }
+  </style>
+</head>
+<body class="dark">
+
+<div class="app">
+  <header class="app-bar">
+    <div class="brand">
+      <h1 class="title">المصحف الشريف</h1>
+      <div class="subtitle">قارئ ذكي مع علامات التوقف</div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn-icon"><a style="text-decoration: none;" href="a.html">🎧</a></button>
+      <button class="btn-icon" id="toggleTheme">🌓</button>
+      <button class="btn" id="openMenu">☰ الفهرس</button>
+    </div>
+  </header>
+
+  <div class="shell">
+    <main class="reader-wrap">
+      <div class="mushaf-card" id="mushafCard">
+        <div id="pageMeta" style="text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 10px;">
+          صفحة <span id="pageIdx">1</span> من 604
+        </div>
+        <div class="surah-title" id="surahName">سورة الفاتحة</div>
+        <article id="mushafContent" class="page-text">جارٍ التحميل...</article>
+      </div>
+    </main>
+
+    <aside class="sidebar" id="sidebar">
+      <h2 style="color:#fff; margin-bottom:15px;">فهرس السور</h2>
+      <div class="toc" id="toc"></div>
+      <button id="closeMenu" class="btn" style="margin-top:10px; width:100%">إغلاق الفهرس</button>
+    </aside>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="btn-icon" id="prevPage">◀</button>
+    <button class="btn" id="btnRandom">🎲 عشوائي</button>
+    <button class="btn-icon" id="nextPage">▶</button>
+  </div>
+</div>
+
+<div id="tafsirModal" class="tafsir-modal">
+  <div class="tafsir-panel">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 id="tafsirTitle" style="margin:0; color:var(--accent);">خيارات الآية</h3>
+      <button id="tafsirClose" style="border:none; padding:8px 15px; border-radius:8px; cursor:pointer;">إغلاق</button>
+    </div>
+    
+    <p id="tafsirMeta" style="color:var(--muted); font-size:14px; margin:10px 0;"></p>
+
+    <div class="mark-tools">
+      <span style="font-size:13px; font-weight:bold;">وضع علامة:</span>
+      <div class="color-dot" style="background:#b8862f" onclick="setMark('gold')" title="علامة ذهبية"></div>
+      <div class="color-dot" style="background:#10b981" onclick="setMark('green')" title="علامة خضراء"></div>
+      <div class="color-dot" style="background:#ef4444" onclick="setMark('red')" title="علامة حمراء"></div>
+      <button id="clearMarkBtn" style="margin-right:auto; background:none; border:1px solid #ccc; padding:4px 8px; border-radius:5px; cursor:pointer; font-size:11px;">حذف العلامة</button>
+    </div>
+
+    <div style="display:flex; gap:5px; margin-bottom:15px;" id="ksuButtons"></div>
+    <div id="tafsirContent" style="background:rgba(0,0,0,0.03); padding:15px; border-radius:15px; line-height:1.8; font-size:17px; font-family:var(--serif);"></div>
+    <button id="showLocalBtn" style="width:100%; background:var(--accent); color:white; border:none; padding:15px; border-radius:15px; font-weight:bold; margin-top:15px; cursor:pointer;">عرض التفسير الميسر</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const SURA_TABLE = [{n:1, s:'الفاتحة', p:1},{n:2, s:'البقرة', p:2},{n:3, s:'آل عمران', p:50},{n:4, s:'النساء', p:77},{n:5, s:'المائدة', p:106},{n:6, s:'الأنعام', p:128},{n:7, s:'الأعراف', p:151},{n:8, s:'الأنفال', p:177},{n:9, s:'التوبة', p:187},{n:10, s:'يونس', p:208},{n:11, s:'هود', p:221},{n:12, s:'يوسف', p:234},{n:13, s:'الرعد', p:246},{n:14, s:'ابراهيم', p:249},{n:15, s:'الحجر', p:255},{n:16, s:'النحل', p:262},{n:17, s:'الإسراء', p:282},{n:18, s:'الكهف', p:293},{n:19, s:'مريم', p:305},{n:20, s:'طه', p:312},{n:21, s:'الأنبياء', p:322},{n:22, s:'الحج', p:332},{n:23, s:'المؤمنون', p:342},{n:24, s:'النور', p:350},{n:25, s:'الفرقان', p:356},{n:26, s:'الشعراء', p:361},{n:27, s:'النمل', p:367},{n:28, s:'القصص', p:373},{n:29, s:'العنكبوت', p:381},{n:30, s:'الروم', p:386},{n:31, s:'لقمان', p:392},{n:32, s:'السجدة', p:396},{n:33, s:'الأحزاب', p:399},{n:34, s:'سبأ', p:404},{n:35, s:'فاطر', p:408},{n:36, s:'يس', p:412},{n:37, s:'الصافات', p:417},{n:38, s:'ص', p:421},{n:39, s:'الزمر', p:425},{n:40, s:'غافر', p:430},{n:41, s:'فصلت', p:434},{n:42, s:'الشورى', p:438},{n:43, s:'الزخرف', p:442},{n:44, s:'الدخان', p:445},{n:45, s:'الجاثية', p:448},{n:46, s:'الأحقاف', p:451},{n:47, s:'محمد', p:455},{n:48, s:'الفتح', p:458},{n:49, s:'الحجرات', p:460},{n:50, s:'ق', p:462},{n:51, s:'الذاريات', p:464},{n:52, s:'الطور', p:467},{n:53, s:'النجم', p:469},{n:54, s:'القمر', p:471},{n:55, s:'الرحمن', p:473},{n:56, s:'الواقعة', p:475},{n:57, s:'الحديد', p:477},{n:58, s:'المجادلة', p:479},{n:59, s:'الحشر', p:481},{n:60, s:'الممتحنة', p:483},{n:61, s:'الصف', p:484},{n:62, s:'الجمعة', p:486},{n:63, s:'المنافقون', p:487},{n:64, s:'التغابن', p:488},{n:65, s:'الطلاق', p:490},{n:66, s:'التحريم', p:492},{n:67, s:'الملك', p:493},{n:68, s:'القلم', p:495},{n:69, s:'الحاقة', p:497},{n:70, s:'المعارج', p:498},{n:71, s:'نوح', p:499},{n:72, s:'الجن', p:500},{n:73, s:'المزمل', p:501},{n:74, s:'المدثر', p:502},{n:75, s:'القيامة', p:503},{n:76, s:'الإنسان', p:504},{n:77, s:'المرسلات', p:505},{n:78, s:'النبأ', p:506},{n:79, s:'النازعات', p:507},{n:80, s:'عبس', p:508},{n:81, s:'التكوير', p:509},{n:82, s:'الانفطار', p:510},{n:83, s:'المطففين', p:511},{n:84, s:'الانشقاق', p:512},{n:85, s:'البروج', p:513},{n:86, s:'الطارق', p:514},{n:87, s:'الأعلى', p:515},{n:88, s:'الغاشية', p:516},{n:89, s:'الفجر', p:517},{n:90, s:'البلد', p:518},{n:91, s:'الشمس', p:519},{n:92, s:'الليل', p:520},{n:93, s:'الضحى', p:521},{n:94, s:'الشرح', p:522},{n:95, s:'التين', p:523},{n:96, s:'العلق', p:524},{n:97, s:'القدر', p:525},{n:98, s:'البينة', p:526},{n:99, s:'الزلزلة', p:527},{n:100, s:'العاديات', p:528},{n:101, s:'القارعة', p:529},{n:102, s:'التكاثر', p:530},{n:103, s:'العصر', p:531},{n:104, s:'الهمزة', p:532},{n:105, s:'الفيل', p:533},{n:106, s:'قريش', p:534},{n:107, s:'الماعون', p:535},{n:108, s:'الكوثر', p:536},{n:109, s:'الكافرون', p:537},{n:110, s:'النصر', p:538},{n:111, s:'المسد', p:539},{n:112, s:'الإخلاص', p:540},{n:113, s:'الفلق', p:541},{n:114, s:'الناس', p:542}];
+
+  let currentPage = Number(localStorage.getItem('mushaf_page')) || 1;
+  let currentVerse = null;
+  let bookmarks = JSON.parse(localStorage.getItem('mushaf_bookmarks')) || {};
+
+  async function loadPage(p) {
+    if (p < 1 || p > 604) return;
+    currentPage = p;
+    localStorage.setItem('mushaf_page', p);
+    const content = document.getElementById('mushafContent');
+    content.innerHTML = '<div style="text-align:center">جاري التحميل...</div>';
+    
+    try {
+      const res = await fetch(`https://api.alquran.cloud/v1/page/${p}/quran-uthmani`);
+      const data = await res.json();
+      const ayahs = data.data.ayahs;
+      
+      document.getElementById('pageIdx').textContent = p;
+      document.getElementById('surahName').textContent = ayahs[0].surah.name;
+      
+      content.innerHTML = ayahs.map(a => `
+        <span class="verse" data-surah="${a.surah.number}" data-ayah="${a.numberInSurah}" data-sname="${a.surah.name}">
+          ${a.text}<span class="verse-num">${a.numberInSurah}</span>
+        </span>
+      `).join(' ');
+      
+      applyMarksToUI(); // تطبيق العلامات المحفوظة
+      document.querySelector('.reader-wrap').scrollTop = 0;
+    } catch(e) { content.innerHTML = 'حدث خطأ في جلب البيانات'; }
+  }
+
+  function applyMarksToUI() {
+    document.querySelectorAll('.verse').forEach(v => {
+      const key = `${v.dataset.surah}_${v.dataset.ayah}`;
+      v.classList.remove('marked-gold', 'marked-green', 'marked-red');
+      if (bookmarks[key]) v.classList.add(`marked-${bookmarks[key]}`);
+    });
+  }
+
+  window.setMark = (color) => {
+    if(!currentVerse) return;
+    const key = `${currentVerse.surah}_${currentVerse.ayah}`;
+    bookmarks[key] = color;
+    localStorage.setItem('mushaf_bookmarks', JSON.stringify(bookmarks));
+    applyMarksToUI();
+    document.getElementById('tafsirModal').style.display = 'none';
+  };
+
+  document.getElementById('clearMarkBtn').onclick = () => {
+    if(!currentVerse) return;
+    const key = `${currentVerse.surah}_${currentVerse.ayah}`;
+    delete bookmarks[key];
+    localStorage.setItem('mushaf_bookmarks', JSON.stringify(bookmarks));
+    applyMarksToUI();
+    document.getElementById('tafsirModal').style.display = 'none';
+  };
+
+  window.goToPage = (p) => {
+    loadPage(p);
+    document.getElementById('sidebar').classList.remove('open');
+  };
+
+  document.getElementById('mushafContent').addEventListener('click', e => {
+    const v = e.target.closest('.verse');
+    if(!v) return;
+    currentVerse = v.dataset;
+    document.getElementById('tafsirTitle').textContent = `سورة ${v.dataset.sname}`;
+    document.getElementById('tafsirMeta').textContent = `الآية رقم ${v.dataset.ayah}`;
+    document.getElementById('tafsirContent').innerHTML = "اختر مفسراً أو ضع علامة حفظ على الآية";
+    
+    const ksu = document.getElementById('ksuButtons');
+    ksu.innerHTML = [
+      {id:'saadi', l:'السعدي'}, {id:'katheer', l:'ابن كثير'}, {id:'qortobi', l:'القرطبي'}
+    ].map(t => `<button class="choice-btn" onclick="window.open('https://quran.ksu.edu.sa/tafseer/${t.id}/sura${v.dataset.surah}-aya${v.dataset.ayah}.html')">${t.l}</button>`).join('');
+    
+    document.getElementById('tafsirModal').style.display = 'flex';
+  });
+
+  document.getElementById('showLocalBtn').onclick = async () => {
+    const cont = document.getElementById('tafsirContent');
+    cont.innerHTML = "جاري التحميل...";
+    try {
+      const r = await fetch(`https://api-quran.com/api?type=tafser2&surah=${currentVerse.surah}&ayah=${currentVerse.ayah}`);
+      const d = await r.json();
+      cont.innerHTML = d.result;
+    } catch(e) { cont.innerHTML = "تعذر جلب التفسير"; }
+  };
+
+  document.getElementById('openMenu').onclick = () => document.getElementById('sidebar').classList.add('open');
+  document.getElementById('closeMenu').onclick = () => document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('tafsirClose').onclick = () => document.getElementById('tafsirModal').style.display = 'none';
+  document.getElementById('nextPage').onclick = () => loadPage(currentPage + 1);
+  document.getElementById('prevPage').onclick = () => loadPage(currentPage - 1);
+  document.getElementById('btnRandom').onclick = () => loadPage(Math.floor(Math.random() * 604) + 1);
+  document.getElementById('toggleTheme').onclick = () => document.body.classList.toggle('dark');
+
+  // بناء الفهرس
+  const toc = document.getElementById('toc');
+  toc.innerHTML = SURA_TABLE.map(s => `
+    <a href="#" onclick="event.preventDefault(); window.goToPage(${s.p})">
+      <span>${s.n}. ${s.s}</span>
+      <span style="opacity:0.6">ص ${s.p}</span>
+    </a>
+  `).join('');
+
+  loadPage(currentPage);
+})();
+</script>
+</body>
+</html>
