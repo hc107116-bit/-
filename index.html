@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />  
   <title>المصحف الإلكتروني — النسخة المنسقة</title>
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   <style>
@@ -27,7 +27,7 @@
 
     /* --- منطقة القراءة --- */
     .shell { flex: 1; display: flex; overflow: hidden; position: relative; }
-    .reader-wrap { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 120px; scroll-behavior: smooth; }
+    .reader-wrap { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 120px; scroll-behavior: smooth; touch-action: pan-y; }
 
     /* Desktop card-style (default) */
     .mushaf-card {
@@ -72,6 +72,25 @@
       font-size: 22px;
     }
 
+    /* play button near surah title */
+    .play-surah {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:40px;
+      height:40px;
+      border-radius:50%;
+      background:var(--accent);
+      color:#fff;
+      border: none;
+      font-size: 16px;
+      cursor:pointer;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.25);
+      transition: transform .12s;
+      margin-left:8px;
+    }
+    .play-surah.small { width:34px; height:34px; font-size:14px; padding:0; }
+
     /* --- تنسيق النص القرآني --- */
     .page-text { 
       font-family: var(--serif); 
@@ -109,16 +128,9 @@
       text-decoration: none; color: #fff; font-size: 14px; border: 1px solid rgba(255,255,255,0.05);
     }
 
-    /* --- الشريط السفلي --- */
-    .bottom-bar {
-      position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
-      width: 90%; max-width: 450px; background: rgba(15, 23, 42, 0.85);
-      backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 100px; display: flex; justify-content: space-between;
-      padding: 8px 15px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); z-index: 1000;
-    }
+    /* --- الزر العشوائي في الهيدر --- */
     .btn { border: none; background: var(--accent); color: white; padding: 10px 20px; border-radius: 50px; font-weight: 700; cursor: pointer; }
-    .btn-icon { background: rgba(255,255,255,0.1); color: white; width: 48px; height: 48px; border-radius: 50%; border: none; font-size: 20px; cursor: pointer; }
+    .btn-icon { background: rgba(255,255,255,0.1); color: white; width: 48px; height: 48px; border-radius: 50%; border: none; font-size: 20px; cursor: pointer; display:flex; align-items:center; justify-content:center; }
 
     /* --- المودال (التفسير والعلامات) --- */
     .tafsir-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: flex-end; justify-content: center; z-index: 3000; }
@@ -167,11 +179,8 @@
         margin-right: 0;
       }
 
-      /* reduce header/footer intrusion */
-      .bottom-bar { bottom: 14px; width: calc(100% - 28px); left: 14px; transform: none; border-radius: 14px; }
-
-      /* sidebar becomes a slide-over that covers less of the screen */
-      .sidebar { width: 92%; max-width: 360px; }
+      /* smaller play button on mobile */
+      .surah-name-frame .play-surah { width:34px; height:34px; font-size:14px; }
     }
 
     @media (min-width: 768px) {
@@ -189,15 +198,19 @@
       <h1 class="title">المصحف الشريف</h1>
       <div class="subtitle">تصميم المصحف الورقي</div>
     </div>
-    <div style="display:flex; gap:8px;">
+    <div style="display:flex; gap:8px; align-items:center;">
       <button class="btn-icon" id="toggleTheme">🌓</button>
-      <button class="btn-icon"><a href="a.html" style="text-decoration: none;">🎧</a></button>
+      <button class="btn-icon"><a href="a.html" style="text-decoration: none; color:inherit;">🎧</a></button>
+
+      <!-- زر العشوائي انتقل إلى الهيدر كما طلبت -->
+      <button class="btn" id="btnRandom" title="فتح صفحة عشوائية">🎲 عشوائي</button>
+
       <button class="btn" id="openMenu">☰ الفهرس</button>
     </div>
   </header>
 
   <div class="shell">
-    <main class="reader-wrap">
+    <main class="reader-wrap" id="readerWrap">
       <div class="mushaf-card" id="mushafCard">
         <div id="pageMeta" style="text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 6px;">
           صفحة <span id="pageIdx">1</span>
@@ -215,13 +228,10 @@
       <button id="closeMenu" class="btn" style="margin-top:10px; width:100%">إغلاق الفهرس</button>
     </aside>
   </div>
-
-  <div class="bottom-bar">
-    <button class="btn-icon" id="prevPage">◀</button>
-    <button class="btn" id="btnRandom">🎲 عشوائي</button>
-    <button class="btn-icon" id="nextPage">▶</button>
-  </div>
 </div>
+
+<!-- مشغّل صوتي واحد مركزي للسور -->
+<audio id="surahAudio" preload="none" crossorigin="anonymous"></audio>
 
 <div id="tafsirModal" class="tafsir-modal">
   <div class="tafsir-panel">
@@ -247,11 +257,22 @@
 <script>
 (function(){
   // بيانات السور الأساسية
-  const SURA_TABLE = [{n:1, s:'الفاتحة', p:1},{n:2, s:'البقرة', p:2},{n:3, s:'آل عمران', p:50},{n:4, s:'النساء', p:77},{n:5, s:'المائدة', p:106},{n:6, s:'الأنعام', p:128},{n:7, s:'الأعراف', p:151},{n:8, s:'الأنفال', p:177},{n:9, s:'التوبة', p:187},{n:10, s:'يونس', p:208},{n:11, s:'هود', p:221},{n:12, s:'يوسف', p:234},{n:13, s:'الرعد', p:246},{n:14, s:'ابراهيم', p:249},{n:15, s:'الحجر', p:255},{n:16, s:'النحل', p:262},{n:17, s:'الإسراء', p:282},{n:18, s:'الكهف', p:293},{n:19, s:'مريم', p:305},{n:20, s:'طه', p:312},{n:21, s:'الأنبياء', p:322},{n:22, s:'الحج', p:332},{n:23, s:'المؤمنون', p:342},{n:24, s:'النور', p:350},{n:25, s:'الفرقان', p:356},{n:26, s:'الشعراء', p:361},{n:27, s:'النمل', p:367},{n:28, s:'القصص', p:373},{n:29, s:'العنكبوت', p:381},{n:30, s:'الروم', p:386},{n:31, s:'لقمان', p:392},{n:32, s:'السجدة', p:396},{n:33, s:'الأحزاب', p:399},{n:34, s:'سبأ', p:404},{n:35, s:'فاطر', p:408},{n:36, s:'يس', p:412},{n:37, s:'الصافات', p:417},{n:38, s:'ص', p:421},{n:39, s:'الزمر', p:425},{n:40, s:'غافر', p:430},{n:41, s:'فصلت', p:434},{n:42, s:'الشورى', p:438},{n:43, s:'الزخرف', p:442},{n:44, s:'الدخان', p:445},{n:45, s:'الجاثية', p:448},{n:46, s:'الأحقاف', p:451},{n:47, s:'محمد', p:455},{n:48, s:'الفتح', p:458},{n:49, s:'الحجرات', p:460},{n:50, s:'ق', p:462},{n:51, s:'الذاريات', p:464},{n:52, s:'الطور', p:467},{n:53, s:'النجم', p:469},{n:54, s:'القمر', p:471},{n:55, s:'الرحمن', p:473},{n:56, s:'الواقعة', p:475},{n:57, s:'الحديد', p:477},{n:58, s:'المجادلة', p:479},{n:59, s:'الحشر', p:481},{n:60, s:'الممتحنة', p:483},{n:61, s:'الصف', p:484},{n:62, s:'الجمعة', p:486},{n:63, s:'المنافقون', p:487},{n:64, s:'التغابن', p:488},{n:65, s:'الطلاق', p:490},{n:66, s:'التحريم', p:492},{n:67, s:'الملك', p:493},{n:68, s:'القلم', p:495},{n:69, s:'الحاقة', p:497},{n:70, s:'المعارج', p:498},{n:71, s:'نوح', p:499},{n:72, s:'الجن', p:500},{n:73, s:'المزمل', p:501},{n:74, s:'المدثر', p:502},{n:75, s:'القيامة', p:503},{n:76, s:'الإنسان', p:504},{n:77, s:'المرسلات', p:505},{n:78, s:'النبأ', p:506},{n:79, s:'النازعات', p:507},{n:80, s:'عبس', p:508},{n:81, s:'التكوير', p:509},{n:82, s:'الانفطار', p:510},{n:83, s:'المطففين', p:511},{n:84, s:'الانشقاق', p:512},{n:85, s:'البروج', p:513},{n:86, s:'الطارق', p:514},{n:87, s:'الأعلى', p:515},{n:88, s:'الغاشية', p:516},{n:89, s:'الفجر', p:517},{n:90, s:'البلد', p:518},{n:91, s:'الشمس', p:519},{n:92, s:'الليل', p:520},{n:93, s:'الضحى', p:521},{n:94, s:'الشرح', p:522},{n:95, s:'التين', p:523},{n:96, s:'العلق', p:524},{n:97, s:'القدر', p:525},{n:98, s:'البينة', p:526},{n:99, s:'الزلزلة', p:527},{n:100, s:'العاديات', p:528},{n:101, s:'القارعة', p:529},{n:102, s:'التكاثر', p:530},{n:103, s:'العصر', p:531},{n:104, s:'الهمزة', p:532},{n:105, s:'الفيل', p:533},{n:106, s:'قريش', p:534},{n:107, s:'الماعون', p:535},{n:108, s:'الكوثر', p:536},{n:109, s:'الكافرون', p:537},{n:110, s:'النصر', p:538},{n:111, s:'المسد', p:539},{n:112, s:'الإخلاص', p:540},{n:113, s:'الفلق', p:541},{n:114, s:'الناس', p:542}];
+  const SURA_TABLE = [{n:1, s:'الفاتحة', p:1},{n:2, s:'البقرة', p:2},{n:3, s:'آل عمران', p:50},{n:4, s:'النساء', p:77},{n:5, s:'المائدة', p:106},{n:6, s:'الأنعام', p:128},{n:7, s:'الأعراف', p:151},{n:8, s:'الأنفال', p:177},{n:9, s:'التوبة', p:187},{n:10, s:'يونس', p:208},{n:11, s:'هود', p:221},{n:12, s:'يوسف', p:234},{n:13, s:'الرعد', p:246},{n:14, s:'ابراهيم', p:249},{n:15, s:'الحجر', p:255},{n:16, s:'النحل', p:262},{n:17, s:'الإسراء', p:282},{n:18, s:'الكهف', p:293},{n:19, s:'مريم', p:305},{n:20, s:'طه', p:312},{n:21, s:'الأنبياء', p:322},{n:22, s:'الحج', p:332},{n:23, s:'المؤمنون', p:342},{n:24, s:'النور', p:350},{n:25, s:'الفرقان', p:356},{n:26, s:'الشعراء', p:361},{n:27, s:'النمل', p:367},{n:28, s:'القصص', p:373},{n:29, s:'العنكبوت', p:381},{n:30, s:'الروم', p:386},{n:31, s:'لقمان', p:392},{n:32, s:'السجدة', p:396},{n:33, s:'الأحزاب', p:399},{n:34, s:'سبأ', p:404},{n:35, s:'فاطر', p:408},{n:36, s:'يس', p:412},{n:37, s:'الصافات', p:417},{n:38, s:'ص', p:421},{n:39, s:'الزمر', p:425},{n:40, s:'غافر', p:430},{n:41, s:'فصلت', p:434},{n:42, s:'الشورى', p:438},{n:43, s:'الزخرف', p:442},{n:44, s:'الدخان', p:445},{n:45, s:'الجاثية', p:448},{n:46, s:'الأحقاف', p:451},{n:47, s:'محمد', p:455},{n:48, s:'الفتح', p:458},{n:49, s:'الحجرات', p:460},{n:50, s:'ق', p:462},{n:51, s:'الذاريات', p:464},{n:52, s:'الطور', p:467},{n:53, s:'النجم', p:469},{n:54, s:'القمر', p:471},{n:55, s:'الرحمن', p:473},{n:56, s:'الواقعة', p:475},{n:57, s:'الحديد', p:477},{n:58, s:'المجادلة', p:479},{n:59, s:'الحشر', p:481},{n:60, s:'الممتحنة', p:483},{n:61, s:'الصف', p:484},{n:62, s:'الجمعة', p:486},{n:63, s:'المنافقون', p:487},{n:64, s:'التغابن', p:488},{n:65, s:'الطلاق', p:490},{n:66, s:'التحريم', p:492},{n:67, s:'الملك', p:493},{n:68, s:'القلم', p:495},{n:69, s:'الحاقة', p:497},{n:70, s:'المعارج', p:498},{n:71, s:'نوح', p:499},{n:72, s:'الجن', p:500},{n:73, s:'المزمل', p:501},{n:74, s:'المدثر', p:502},{n:75, s:'القيامة', p:503},{n:76, s:'الإنسان', p:504},{n:77, s:'المرسلات', p:505},{n:78, s:'النبأ', p:506},{n:79, s:'النازعات', p:507},{n:80, s:'عبس', p:508},{n:81, s:'التكوير', p:509},{n:82, s:'الانفطار', p:510},{n:83, s:'المطففين', p:511},{n:84, s:'الانشقاق', p:512},{n:85, s:'البروج', p:513},{n:86, s:'الطارق', p:514},{n:87, s:'الأعلى', p:515},{n:88, s:'الغاشية', p:516},{n:89, s:'الفجر', p:517},{n:90, s:'البلد', p:518},{n:91, s:'الشمس', p:519},{n:92, s:'الليل', p:520},{n:93, s:'الضحى', p:521},{n:94, s:'الشرح', p:522},{n:95, s:'التين', p:523},{n:96, s:'العلق', p:524},{n:97, s:'القدر', p:525},{n:98, s:'البينة', p:526},{n:99, s:'الزلزلة', p:527},{n:100, s:'العадيات', p:528},{n:101, s:'القارعة', p:529},{n:102, s:'التكاثر', p:530},{n:103, s:'العصر', p:531},{n:104, s:'الهمزة', p:532},{n:105, s:'الفيل', p:533},{n:106, s:'قريش', p:534},{n:107, s:'الماعون', p:535},{n:108, s:'الكوثر', p:536},{n:109, s:'الكافرون', p:537},{n:110, s:'النصر', p:538},{n:111, s:'المسد', p:539},{n:112, s:'الإخلاص', p:540},{n:113, s:'الفلق', p:541},{n:114, s:'الناس', p:542}];
 
   let currentPage = Number(localStorage.getItem('mushaf_page')) || 1;
   let currentVerse = null;
   let bookmarks = JSON.parse(localStorage.getItem('mushaf_bookmarks')) || {};
+
+  // مشغّل الصوت وحالة الزر النشط
+  const surahAudio = document.getElementById('surahAudio');
+  let activePlayButton = null;
+  let activeSurahPlaying = null;
+
+  // MP3Quran server8 format: pad to 3 digits
+  function surahAudioUrl(surahNumber) {
+    const idx = String(Number(surahNumber)).padStart(3, '0');
+    return `https://server8.mp3quran.net/afs/${idx}.mp3`;
+  }
 
   async function loadPage(p) {
     if (p < 1 || p > 604) return;
@@ -284,9 +305,13 @@
         let text = a.text;
         
         if (a.numberInSurah === 1) {
+          // اسم السورة + زر تشغيل
           htmlOutput += `
             <div class="surah-block">
-              <div class="surah-name-frame">سورة ${a.surah.name}</div>
+              <div class="surah-name-frame">
+                <span>سورة ${a.surah.name}</span>
+                <button class="play-surah small" data-surah="${a.surah.number}" aria-label="تشغيل سورة ${a.surah.name}">🔊</button>
+              </div>
             </div>
           `;
 
@@ -383,15 +408,14 @@
     document.getElementById('tafsirModal').style.display = 'flex';
   });
 
-  // أزرار التحكم
+  // أزرار التحكم الصغيرة
   document.getElementById('openMenu').onclick = () => document.getElementById('sidebar').classList.add('open');
   document.getElementById('closeMenu').onclick = () => document.getElementById('sidebar').classList.remove('open');
   document.getElementById('tafsirClose').onclick = () => document.getElementById('tafsirModal').style.display = 'none';
-  
-  document.getElementById('nextPage').onclick = () => loadPage(currentPage + 1);
-  document.getElementById('prevPage').onclick = () => loadPage(currentPage - 1);
-  document.getElementById('btnRandom').onclick = () => loadPage(Math.floor(Math.random() * 604) + 1);
   document.getElementById('toggleTheme').onclick = () => document.body.classList.toggle('dark');
+
+  // زر العشوائي الآن في الأعلى
+  document.getElementById('btnRandom').onclick = () => loadPage(Math.floor(Math.random() * 604) + 1);
 
   // بناء الفهرس
   const toc = document.getElementById('toc');
@@ -404,6 +428,127 @@
 
   // بدء التطبيق
   loadPage(currentPage);
+
+  // ==========================
+  // تشغيل/إيقاف صوت السورة (event delegation للزر)
+  // ==========================
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.play-surah');
+    if (!btn) return;
+    const surahNum = btn.dataset.surah;
+    if (!surahNum) return;
+
+    // إذا نفس السورة تعمل حالياً
+    if (activeSurahPlaying === surahNum) {
+      if (surahAudio.paused) {
+        surahAudio.play();
+        btn.textContent = '⏸';
+      } else {
+        surahAudio.pause();
+        btn.textContent = '🔊';
+      }
+      return;
+    }
+
+    // إيقاف أي تشغيل سابق وتحديث أي زر سابق
+    if (activePlayButton && activePlayButton !== btn) {
+      activePlayButton.textContent = '🔊';
+    }
+    activePlayButton = btn;
+    activeSurahPlaying = surahNum;
+
+    // ضع مصدر الصوت ثم شغله
+    const url = surahAudioUrl(surahNum);
+    surahAudio.src = url;
+    surahAudio.currentTime = 0;
+    surahAudio.play().then(() => {
+      // تبديل أيقونة الزر للمؤشر إلى إيقاف
+      btn.textContent = '⏸';
+    }).catch(err => {
+      // فشل التشغيل — نعيد أيقونة ونظهر رسالة خفيفة
+      console.warn('خطأ في تشغيل الصوت:', err);
+      btn.textContent = '🔊';
+      activeSurahPlaying = null;
+      alert('تعذّر تشغيل الصوت — تأكد من اتصال الإنترنت ومصدر الصوت.');
+    });
+  });
+
+  // عند انتهاء الصوت نعيد حالة الزر
+  surahAudio.addEventListener('ended', () => {
+    if (activePlayButton) activePlayButton.textContent = '🔊';
+    activeSurahPlaying = null;
+  });
+  surahAudio.addEventListener('pause', () => {
+    if (activePlayButton) activePlayButton.textContent = '🔊';
+  });
+
+  // ==========================
+  // دعم السحب باللمس والفأرة (Swipe navigation)
+  // ==========================
+  const reader = document.getElementById('readerWrap');
+
+  let startX = 0, startY = 0, isPointerDown = false;
+
+  function handleSwipeEnd(dx, dy) {
+    const absX = Math.abs(dx), absY = Math.abs(dy);
+    const threshold = 60; // بكسل لازم لتحديد سحب مقصود
+    if (absX > threshold && absX > absY) {
+      if (dx < 0) {
+        // سحب لليسار -> صفحة تالية
+        loadPage(currentPage + 1);
+      } else {
+        // سحب لليمين -> صفحة سابقة
+        loadPage(currentPage - 1);
+      }
+    }
+  }
+
+  // Touch events
+  reader.addEventListener('touchstart', (ev) => {
+    if (!ev.touches || ev.touches.length === 0) return;
+    const t = ev.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    isPointerDown = true;
+  }, {passive: true});
+
+  reader.addEventListener('touchend', (ev) => {
+    if (!isPointerDown) return;
+    isPointerDown = false;
+    const t = (ev.changedTouches && ev.changedTouches[0]) || null;
+    if (!t) return;
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+    handleSwipeEnd(dx, dy);
+  });
+
+  // Mouse drag support (desktop)
+  let mouseDown = false, mouseStartX = 0, mouseStartY = 0;
+
+  reader.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    mouseDown = true;
+    mouseStartX = e.clientX;
+    mouseStartY = e.clientY;
+    document.body.style.userSelect = 'none';
+  });
+
+  document.addEventListener('mouseup', (e) => {
+    if (!mouseDown) return;
+    mouseDown = false;
+    document.body.style.userSelect = '';
+    const dx = e.clientX - mouseStartX;
+    const dy = e.clientY - mouseStartY;
+    handleSwipeEnd(dx, dy);
+  });
+
+  // دعم لوحة المفاتيح
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') loadPage(currentPage - 1);
+    if (e.key === 'ArrowRight') loadPage(currentPage + 1);
+    if (e.key === 'r' || e.key === 'R') loadPage(Math.floor(Math.random() * 604) + 1);
+  });
+
 })();
 </script>
 </body>
