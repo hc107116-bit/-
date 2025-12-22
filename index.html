@@ -256,16 +256,15 @@
   let currentVerse = null;
   let bookmarks = JSON.parse(localStorage.getItem('mushaf_bookmarks')) || {};
 
-  // --- تعريف بيانات القراء مع خاصية تخطي البسملة ---
+  // --- تعريف بيانات القراء ---
   const RECITERS = [
-      { id: 'alafasy', name: 'مشاري العفاسي', surahServer: 'https://server8.mp3quran.net/afs/', ayahServer: 'Alafasy_128kbps', basmalahJump: 4.5 },
-      { id: 'ajmi', name: 'أحمد العجمي', surahServer: 'https://server10.mp3quran.net/ajm/', ayahServer: 'Ahmed_ibn_Ali_al-Ajamy_128kbps', basmalahJump: 3.0 },
-      { id: 'minshawy', name: 'محمد صديق المنشاوي', surahServer: 'https://server10.mp3quran.net/minsh/', ayahServer: 'Minshawy_Murattal_128kbps', basmalahJump: 3.8 },
-      { id: 'fares', name: 'فارس عباد', surahServer: 'https://server8.mp3quran.net/frs_a/', ayahServer: 'Fares_Abbad_128kbps', basmalahJump: 3.5 },
-      { id: 'wadee', name: 'وديع اليمني', surahServer: 'https://server6.mp3quran.net/wdee3/', ayahServer: 'Alafasy_128kbps', basmalahJump: 4.5 },
-      { id: 'husary', name: 'محمود خليل الحصري', surahServer: 'https://server13.mp3quran.net/husr/', ayahServer: 'Husary_128kbps', basmalahJump: 5.0 },
-      { id: 'yasser', name: 'ياسر الدوسري', surahServer: 'https://server11.mp3quran.net/yasser/', ayahServer: 'Yasser_Ad-Dussary_128kbps', basmalahJump: 3.0 },
-      { id: 'jaber', name: 'علي جابر', surahServer: 'https://server11.mp3quran.net/a_jbr/', ayahServer: 'Ali_Jaber_64kbps', basmalahJump: 3.0 }
+      { id: 'alafasy', name: 'مشاري العفاسي', surahServer: 'https://server8.mp3quran.net/afs/', ayahServer: 'Alafasy_128kbps' },
+      { id: 'ajmi', name: 'أحمد العجمي', surahServer: 'https://server10.mp3quran.net/ajm/', ayahServer: 'Ahmed_ibn_Ali_al-Ajamy_128kbps' },
+      { id: 'minshawy', name: 'محمد صديق المنشاوي', surahServer: 'https://server10.mp3quran.net/minsh/', ayahServer: 'Minshawy_Murattal_128kbps' },
+      { id: 'wadee', name: 'وديع اليمني', surahServer: 'https://server6.mp3quran.net/wdee3/', ayahServer: 'Alafasy_128kbps' },
+      { id: 'husary', name: 'محمود خليل الحصري', surahServer: 'https://server13.mp3quran.net/husr/', ayahServer: 'Husary_128kbps' },
+      { id: 'yasser', name: 'ياسر الدوسري', surahServer: 'https://server11.mp3quran.net/yasser/', ayahServer: 'Yasser_Ad-Dussary_128kbps' },
+      { id: 'jaber', name: 'علي جابر', surahServer: 'https://server11.mp3quran.net/a_jbr/', ayahServer: 'Ali_Jaber_64kbps' }
   ];
 
   let savedReciterId = localStorage.getItem('mushaf_reciter') || 'alafasy';
@@ -414,11 +413,9 @@
     }
   }
 
+  // تمت إزالة منطق القفز (basmalahJump) بالكامل من هنا لضمان البدء من الصفر
   surahAudio.onloadedmetadata = () => {
-    // قفز البسملة صوتياً إذا كانت الآية 1 (وليست الفاتحة أو التوبة)
-    if (isVersePlaying && currentPlayingAyah === 1 && currentPlayingSurah !== 1 && currentPlayingSurah !== 9) {
-        surahAudio.currentTime = activeReciter.basmalahJump || 0;
-    }
+     // الملف سيعمل من بدايته الافتراضية (0:00)
   };
 
   window.playVerseSequence = (surah, ayah) => {
@@ -438,6 +435,7 @@
     const url = `https://everyayah.com/data/${activeReciter.ayahServer}/${pad3(currentPlayingSurah)}${pad3(currentPlayingAyah)}.mp3`;
 
     surahAudio.src = url;
+    surahAudio.currentTime = 0; // تأكيد البدء من البداية
     surahAudio.play().catch(e => { console.error("Audio play failed", e); });
 
     surahAudio.onended = () => {
