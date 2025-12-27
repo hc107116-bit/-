@@ -1,3 +1,416 @@
-<div class='widget-content'>
-<div dir="rtl" style="text-align: right;" trbidi="on">
-  <iframe allowfullscreen="yes" frameborder="1" height="500px" marginheight="0px" marginwidth="0px" name="myiFrame" scrolling="no" src="https://qari.app/" style="border: 0px #ffffff none;" width="100%"></iframe>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الباحث القرآني الذكي</title>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --primary-color: #006442;
+        --accent-color: #d4af37;
+        --bg-color: #f4f7f6;
+        --text-color: #333;
+      }
+
+      body {
+        font-family: 'Tajawal', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        min-height: 100vh;
+      }
+
+      .container {
+        width: 90%;
+        max-width: 800px;
+        margin-top: 50px;
+        padding-bottom: 50px;
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      header h1 {
+        color: var(--primary-color);
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+      }
+
+      .search-box-container {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      }
+
+      .search-box {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .options {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.95rem;
+        color: #555;
+      }
+
+      /* تخصيص Checkbox */
+      input[type="checkbox"] {
+        accent-color: var(--primary-color);
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
+
+      input[type="text"] {
+        flex: 1;
+        padding: 15px;
+        border: 2px solid #eee;
+        border-radius: 8px;
+        font-family: 'Tajawal', sans-serif;
+        font-size: 1.1rem;
+        outline: none;
+        transition: 0.3s;
+      }
+
+      input[type="text"]:focus {
+        border-color: var(--primary-color);
+      }
+
+      button {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 0 30px;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        cursor: pointer;
+        font-family: 'Tajawal', sans-serif;
+        transition: 0.3s;
+      }
+
+      button:hover {
+        background-color: #004d32;
+      }
+
+      #results-container {
+        margin-top: 30px;
+      }
+
+      .ayah-card {
+        background: white;
+        padding: 20px;
+        margin-bottom: 15px;
+        border-radius: 10px;
+        border-right: 5px solid var(--accent-color);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        animation: fadeIn 0.5s ease;
+      }
+
+      .ayah-text {
+        font-family: 'Amiri', serif;
+        font-size: 1.8rem;
+        color: #222;
+        line-height: 1.8;
+        margin-bottom: 15px;
+        text-align: justify;
+      }
+
+      .ayah-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid #eee;
+        padding-top: 10px;
+        margin-top: 15px;
+        font-size: 0.9rem;
+        color: #666;
+      }
+
+      .play-btn {
+        background-color: transparent;
+        color: var(--primary-color);
+        border: 1px solid var(--primary-color);
+        padding: 5px 15px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-family: 'Tajawal', sans-serif;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.3s ease;
+      }
+
+      .play-btn:hover {
+        background-color: var(--primary-color);
+        color: white;
+      }
+
+      .play-btn.playing {
+        background-color: var(--accent-color);
+        border-color: var(--accent-color);
+        color: #fff;
+      }
+
+      .highlight {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 0 2px;
+        border-radius: 2px;
+      }
+
+      .hidden { display: none; }
+      
+      .alert-msg {
+        background-color: #e3f2fd;
+        color: #0d47a1;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+        border: 1px solid #bbdefb;
+      }
+
+      #error-msg {
+        color: #d32f2f;
+        background-color: #ffebee;
+        padding: 10px;
+        border-radius: 8px;
+        text-align: center;
+        margin-top: 10px;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>الباحث القرآني</h1>
+            <p>ابحث عن الآيات والكلمات في القرآن الكريم</p>
+        </header>
+
+        <div class="search-box-container">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="اكتب كلمة للبحث (مثال: الصابرين)...">
+                <button onclick="performSearch()" id="searchBtn">بحث</button>
+            </div>
+            
+            <div class="options">
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="exactMatch">
+                    <span>مطابقة الكلمة تماماً (نتائج أدق)</span>
+                </label>
+            </div>
+        </div>
+
+        <div id="loading" class="hidden" style="text-align: center; margin-top: 20px;">جاري البحث...</div>
+        <div id="error-msg" class="hidden"></div>
+
+        <div id="results-container"></div>
+    </div>
+
+    <script>
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const resultsContainer = document.getElementById('results-container');
+    const loadingDiv = document.getElementById('loading');
+    const errorMsg = document.getElementById('error-msg');
+    const exactMatchCheckbox = document.getElementById('exactMatch');
+
+    let currentAudio = null;
+    let currentBtn = null;
+
+    searchBtn.addEventListener('click', performSearch);
+
+    searchInput.addEventListener('keyup', function(event) {
+        if (event.key === 'Enter') performSearch();
+    });
+
+    async function performSearch() {
+        const query = searchInput.value.trim();
+        const isExact = exactMatchCheckbox.checked;
+
+        stopCurrentAudio();
+
+        if (!query) {
+            showError('الرجاء كتابة كلمة للبحث عنها.');
+            return;
+        }
+
+        showLoading(true);
+        clearResults();
+        hideError();
+
+        try {
+            // البحث دائماً يتم في النص الكامل
+            const response = await fetch(`https://api.alquran.cloud/v1/search/${query}/all/ar`);
+            
+            if (!response.ok) throw new Error('خطأ في الاتصال');
+
+            const data = await response.json();
+
+            if (data.code === 200 && data.data.count > 0) {
+                let matches = data.data.matches;
+
+                // منطق التصفية للمطابقة التامة
+                if (isExact) {
+                    matches = matches.filter(match => {
+                        // استخدام تعبير منتظم للتأكد من أن الكلمة مستقلة وليست جزءاً من كلمة أخرى
+                        // هذا التعبير يبحث عن الكلمة مسبوقة ومتبوعة بغير الأحرف العربية (مسافة، نقطة، بداية نص، الخ)
+                        // ملاحظة: التشكيل قد يؤثر، لكن هذا الفلتر يعمل جيداً للنصوص القياسية
+                        const regex = new RegExp(`(^|[^\\u0621-\\u064A])${query}([^\\u0621-\\u064A]|$)`, 'u');
+                        return match.text.includes(query) && regex.test(match.text);
+                    });
+                }
+
+                if (matches.length > 0) {
+                    displayResults(matches, query, isExact);
+                } else {
+                    showError('لم يتم العثور على نتائج مطابقة تماماً لهذه الكلمة.');
+                }
+            } else {
+                showError('لم يتم العثور على أي نتائج.');
+            }
+
+        } catch (error) {
+            console.error(error);
+            showError('حدث خطأ أثناء البحث، حاول مرة أخرى.');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    function displayResults(matches, query, isExact) {
+        // تحديد حد أقصى للنتائج لتجنب بطء المتصفح (مثلاً عند البحث عن "الله")
+        const maxResults = 50; 
+        const totalMatches = matches.length;
+        const displayMatches = matches.slice(0, maxResults);
+
+        // رسالة عدد النتائج
+        const countDiv = document.createElement('div');
+        countDiv.style.marginBottom = '20px';
+        countDiv.style.color = '#666';
+        
+        let msg = `تم العثور على <strong>${totalMatches}</strong> موضع`;
+        if (totalMatches > maxResults) {
+            msg += ` <span style='font-size:0.9em; color:#d9534f'>(تم عرض أول ${maxResults} نتيجة لسرعة الأداء)</span>`;
+        }
+        if (isExact) {
+            msg += ` <span class="highlight"> [بحث مطابق تماماً]</span>`;
+        }
+        countDiv.innerHTML = msg;
+        resultsContainer.appendChild(countDiv);
+
+        displayMatches.forEach(match => {
+            const card = document.createElement('div');
+            card.className = 'ayah-card';
+
+            const audioUrl = `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${match.number}.mp3`;
+
+            // التظليل الذكي
+            let highlightedText = match.text;
+            try {
+                // محاولة تظليل الكلمة بدقة باستخدام RegExp
+                highlightedText = match.text.replace(new RegExp(query, 'gi'), matchStr => {
+                     return `<span class="highlight">${matchStr}</span>`;
+                });
+            } catch(e) {
+                // في حال فشل الـ RegExp (رموز خاصة)
+            }
+
+            card.innerHTML = `
+                <div class="ayah-text">
+                    ${highlightedText} ﴿${match.numberInSurah}﴾
+                </div>
+                <div class="ayah-info">
+                    <div>
+                        <strong>سورة ${match.surah.name}</strong> - آية ${match.numberInSurah}
+                    </div>
+                    <button class="play-btn" onclick="handleAudio('${audioUrl}', this)">
+                        <span>▶</span> استماع
+                    </button>
+                </div>
+            `;
+
+            resultsContainer.appendChild(card);
+        });
+    }
+
+    function handleAudio(url, btn) {
+        if (currentAudio && currentBtn === btn && !currentAudio.paused) {
+            currentAudio.pause();
+            updateBtnStyle(btn, false);
+            return;
+        }
+
+        if (currentAudio && currentBtn === btn && currentAudio.paused) {
+            currentAudio.play();
+            updateBtnStyle(btn, true);
+            return;
+        }
+
+        stopCurrentAudio();
+
+        currentAudio = new Audio(url);
+        currentBtn = btn;
+
+        currentAudio.play();
+        updateBtnStyle(btn, true);
+
+        currentAudio.onended = () => {
+            updateBtnStyle(btn, false);
+            currentAudio = null;
+            currentBtn = null;
+        };
+        
+        currentAudio.onerror = () => {
+            alert("عذراً، الملف الصوتي غير متاح حالياً لهذه الآية.");
+            updateBtnStyle(btn, false);
+        };
+    }
+
+    function stopCurrentAudio() {
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
+        if (currentBtn) {
+            updateBtnStyle(currentBtn, false);
+        }
+    }
+
+    function updateBtnStyle(btn, isPlaying) {
+        const iconSpan = btn.querySelector('span');
+        if (isPlaying) {
+            btn.classList.add('playing');
+            btn.childNodes[2].nodeValue = " إيقاف";
+            iconSpan.textContent = "⏸";
+        } else {
+            btn.classList.remove('playing');
+            btn.childNodes[2].nodeValue = " استماع";
+            iconSpan.textContent = "▶";
+        }
+    }
+
+    function showLoading(show) { loadingDiv.classList.toggle('hidden', !show); }
+    function showError(msg) { errorMsg.textContent = msg; errorMsg.classList.remove('hidden'); }
+    function hideError() { errorMsg.classList.add('hidden'); }
+    function clearResults() { resultsContainer.innerHTML = ''; }
+    </script>
+</body>
+</html>
